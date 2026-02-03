@@ -7,7 +7,10 @@
 gamescope_enabled=1
 gamemode_enabled=1
 mangohud_enabled=0
-primerun_enabled=1
+primerun_enabled=1 # enables gpu offloading. if prefer_switcherooctl is set to 0, environment variables will be used.
+
+prefer_switcherooctl=1 # seems to be more stable than environment variables. if you disable it, this script will use environment variables assuming primerun_enabled is 1 in both scenarios.
+switcherooctl_gpu_override=1 # 1 usually is your descrete gpu. if you have cable plugged into the descrete card and have integrated one enabled, this may force integrated. set it to 0 if you have poor performance.
 
 # \\ General // #
 
@@ -35,7 +38,7 @@ compositor_adaptivesync_enabled=0 # this is essentially vrr
 
 # < HDR > #
 
-compositor_hdr_enabled=1 # enable this if your system supports it. i assume both your pc and display.
+compositor_hdr_enabled=0 # enable this if your system supports it. i assume both your pc and display.
 hdr_max_nits=1000 # this is the value from the barely visible logo.
 hdr_sdr_nits=100 # itm thing
 hdr_sdr_content_nits=100 # also itm thing
@@ -50,7 +53,7 @@ process_resolution_y=0
 process_framerate=0
 
 # use these if you have issues with mouse or keyboard.
-process_lock_mouse=1
+process_lock_mouse=0
 process_lock_keyboard=0
 
 # > Process < #
@@ -60,22 +63,28 @@ process_lock_keyboard=0
 
 # LOGIC #
 
-# this does gpu offloading if your system has more than 1 gpu. typically igpu and dgpu.
-gpu_count=$(lspci -nn | grep -Ei 'vga|3d|display' | wc -l)
-if [ "$gpu_count" -gt 1 ] && [ "$primerun_enabled" -eq 1 ]; then
-    export DRI_PRIME=1
-
-    export __NV_PRIME_RENDER_OFFLOAD=1
-    export __GLX_VENDOR_LIBRARY_NAME=nvidia
-    export __VK_LAYER_NV_optimus=NVIDIA_only
-fi
-
+switcherooctl_here=0
 gamescope_here=0
 gamemode_here=0
 mangohud_here=0
 mangoapp_here=0
 
-# gamemode will tune the system so the application runs optimally.
+# this does gpu offloading if your system has more than 1 gpu. typically igpu and dgpu.
+gpu_count=$(lspci -nn | grep -Ei 'vga|3d|display' | wc -l)
+if [ "$gpu_count" -gt 1 ] && [ "$primerun_enabled" -eq 1 ]; then
+    if command -v switcherooctl >/dev/null 2>&1 && [ "$prefer_switcherooctl" -eq 1 ]; then
+        switcherooctl=1
+        SW="switcherooctl launch --gpu $switcherooctl_gpu_override "
+    else
+        export DRI_PRIME=1
+
+        export __NV_PRIME_RENDER_OFFLOAD=1
+        export __GLX_VENDOR_LIBRARY_NAME=nvidia
+        export __VK_LAYER_NV_optimus=NVIDIA_only
+    fi
+fi
+
+# gamemode will tune the linux kernel so the application runs optimally.
 if command -v gamemoderun >/dev/null 2>&1 && [ "$gamemode_enabled" -eq 1 ]; then
     gamemode_here=1
     GM="gamemoderun "
@@ -83,7 +92,7 @@ else
     GM=""
 fi
 
-# mangohud is here because gamescope supports it and people likely would want to monitor their resource usage.
+# mangohud is here because people would likely want to monitor their resource usage.
 if command -v mangohud >/dev/null 2>&1 && [ "$mangohud_enabled" -eq 1 ]; then
     mangohud_here=1
     MH="mangohud "
@@ -161,8 +170,8 @@ if command -v gamescope >/dev/null 2>&1 && [ "$gamescope_enabled" -eq 1 ]; then
         -H $compositor_resolution_y \
         -r $compositor_refreshrate \
 
-        -F $compositor_filter_method \
-        -S $compositor_scaling_method \
+        --filter $compositor_filter_method \
+        --scaler $compositor_scaling_method \
 
         -w $process_resolution_x \
         -h $process_resolution_y \
@@ -186,6 +195,22 @@ if [ "$1" = "--help" ] || [ "$1" = "-h" ] || [ "$1" = "" ]; then
 fi
 
 if [ "$1" = "-hh" ]; then
+    echo " SWITCHEROOCTL"
+    if [ "$switcherooctl_here" -eq 1 ]; then
+        echo "version"
+        switcherooctl version
+        echo ""
+        echo "help"
+        switcherooctl help
+        echo ""
+        echo "list"
+        switcherooctl list
+    else
+        echo "disabled or not installed"
+    fi
+
+    echo ""
+    echo ""
     echo " GAMEMODE"
     if [ "$gamemode_here" -eq 1 ]; then
         echo "-> gamemoded <-"
@@ -225,7 +250,11 @@ echo "OPTIMUS STATUS"
 
 # this is set as 'prime-run' so users can easily connect the dots.
 if [ "$gpu_count" -gt 1 ] && [ "$primerun_enabled" -eq 1 ]; then
-    echo " prime-run:\t Y"
+    if [ "$switcherooctl_here" -eq 1 ]; then
+        echo " prime-run:\t Y (switcherooctl)"
+    else
+        echo " prime-run:\t Y"
+    fi
 else
     echo " prime-run:\t N"
 fi
@@ -258,7 +287,7 @@ if [ "$1" = "-s" ]; then
 fi
 
 # the command. amazing? lmao
-CMD="$GM$GS$MH"
+CMD="$SW$GM$GS$MH"
 
 if [ "$gamescope_here" -eq 1 ]; then
     echo ""
