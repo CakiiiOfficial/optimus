@@ -1,0 +1,11 @@
+#!/bin/sh
+echo "killing processes called by optimus-run"
+for i in {1..10} do
+    pkill -9 -f game
+    sleep 2.5
+    pkill -9 -f game
+done
+echo "done."
+echo ""
+
+# yea, this is pretty much it lmao.
