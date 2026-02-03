@@ -76,7 +76,6 @@ if [ "$gpu_count" -gt 1 ] && [ "$primerun_enabled" -eq 1 ]; then
         switcherooctl=1
         SW="switcherooctl launch --gpu $switcherooctl_gpu_override "
     else
-        SW=""
         export DRI_PRIME=1
 
         export __NV_PRIME_RENDER_OFFLOAD=1
@@ -89,16 +88,12 @@ fi
 if command -v gamemoderun >/dev/null 2>&1 && [ "$gamemode_enabled" -eq 1 ]; then
     gamemode_here=1
     GM="gamemoderun "
-else
-    GM=""
 fi
 
 # mangohud is here because people would likely want to monitor their resource usage.
 if command -v mangohud >/dev/null 2>&1 && [ "$mangohud_enabled" -eq 1 ]; then
     mangohud_here=1
     MH="mangohud "
-else
-    MH=""
 fi
 
 # gamescope will isolate your application from your desktop environment. who doesn't love making apps delusional, ey?
@@ -117,39 +112,31 @@ if command -v gamescope >/dev/null 2>&1 && [ "$gamescope_enabled" -eq 1 ]; then
         process_framerate="$((compositor_refreshrate - 1))"
     fi
 
-    wl=""
     if [ "$compositor_expose_wayland" -eq 1 ]; then
         wl="--expose-wayland "
     fi
 
-    hdr=""
-    hdrconf=""
     if [ "$compositor_hdr_enabled" -eq 1 ]; then
         hdr="--hdr-enabled --hdr-itm-enabled --hdr-debug-force-support --hdr-debug-force-output "
         hdrconf="--hdr-itm-target-nits $hdr_max_nits --hdr-sdr-content-nits $hdr_sdr_content_nits --hdr-itm-sdr-nits $hdr_sdr_nits --sdr-gamut-wideness $hdr_sdr_gamut_wideness "
     fi
 
-    async=""
     if [ "$compositor_adaptivesync_enabled" -eq 1 ]; then
         async="--adaptive-sync "
     fi
 
-    steam=""
     if [ "$compositor_steam" -eq 1 ]; then
         steam="--steam "
     fi
 
-    mouse_locked=""
     if [ "$process_lock_mouse" -eq 1 ]; then
         mouse_locked="--force-grab-cursor "
     fi
 
-    keyboard_locked=""
     if [ "$process_lock_keyboard" -eq 1 ]; then
         keyboard_locked="--grab "
     fi
 
-    mhud=""
     if [ "$mangohud_here" -eq 1 ]; then
         if command -v mangoapp >/dev/null 2>&1; then
             if [ "$compositor_mangoapp_wayland" -eq 1 ] || [ "$compositor_expose_wayland" -eq 0 ]; then
@@ -181,9 +168,10 @@ if command -v gamescope >/dev/null 2>&1 && [ "$gamescope_enabled" -eq 1 ]; then
         $mouse_locked \
 
         $mhud$hdr$hdrconf$async$steam-- "
-else
-    GS=""
 fi
+
+
+
 
 if [ "$1" = "--help" ] || [ "$1" = "-h" ] || [ "$1" = "" ]; then
     echo "A configurable drop in replacement for nvidia prime-run with additional gamemoderun, gamescope, and mangohud support."
@@ -247,6 +235,9 @@ if [ "$1" = "-hh" ]; then
     exit 0
 fi
 
+
+
+
 echo "OPTIMUS STATUS"
 
 # this is set as 'prime-run' so users can easily connect the dots.
@@ -287,8 +278,8 @@ if [ "$1" = "-s" ]; then
     exit 0
 fi
 
-# the command. amazing? lmao
-CMD="$SW$GM$GS$MH"
+
+
 
 if [ "$gamescope_here" -eq 1 ]; then
     echo ""
@@ -303,6 +294,9 @@ if [ "$gamescope_here" -eq 1 ] || [ "$gamemode_here" -eq 1 ]; then
     echo ""
     echo "depending on the process you run this script with, gamescope or gamemode may linger for too long without exiting. use system monitor or task manager to kill redundant processes."
 fi
+
+# the command. amazing? lmao
+CMD="$SW$GM$GS$MH"
 
 echo ""
 echo "command to be ran: $CMD$@" #debug thing
