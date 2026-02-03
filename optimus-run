@@ -73,7 +73,7 @@ mangoapp_here=0
 gpu_count=$(lspci -nn | grep -Ei 'vga|3d|display' | wc -l)
 if [ "$gpu_count" -gt 1 ] && [ "$primerun_enabled" -eq 1 ]; then
     if command -v switcherooctl >/dev/null 2>&1 && [ "$prefer_switcherooctl" -eq 1 ]; then
-        switcherooctl=1
+        switcherooctl_here=1
         SW="switcherooctl launch --gpu $switcherooctl_gpu_override "
     else
         export DRI_PRIME=1
@@ -166,6 +166,7 @@ if command -v gamescope >/dev/null 2>&1 && [ "$gamescope_enabled" -eq 1 ]; then
         --framerate-limit $process_framerate \
 
         $mouse_locked \
+        $keyboard_locked \
 
         $mhud$hdr$hdrconf$async$steam-- "
 fi
