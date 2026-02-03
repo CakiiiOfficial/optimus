@@ -1,1 +1,280 @@
 #!/bin/sh
+# CONFIGURATION #
+
+# // General \\ #
+
+# if you enable these features, ensure that they're installed or they're gonna be ignored.
+gamescope_enabled=1
+gamemode_enabled=1
+mangohud_enabled=0
+primerun_enabled=1
+
+# \\ General // #
+
+
+# // Gamescope \\ #
+# note: all gamescope settings will be ignored if you disabled it or don't have it installed.
+
+# enable this if you're running this script from steam. if not, then have it disabled.
+compositor_steam=0
+
+# expose gamescope's wayland to processes you run with this script. if you have this enabled, mangohub will be moved to the process instead of gamescope.
+compositor_expose_wayland=0
+
+# force mangohud (gamescope's mangoapp) to use wayland. may not work.
+compositor_mangoapp_wayland=0
+
+# this is compositor controls. this is like setting up an 'ideal' screen but one that runs on yours.
+compositor_resolution_x=1280
+compositor_resolution_y=720
+compositor_refreshrate=59 # i've tested on many machines, if you do your refresh rate -1 then you mostly eliminate screen tearing.
+
+compositor_scaling_method=fit # (auto, integer, fit, fill, stretch)
+compositor_filter_method=linear # (linear, nearest, fsr, nis, pixel)
+compositor_adaptivesync_enabled=0 # this is essentially vrr
+
+# < HDR > #
+
+compositor_hdr_enabled=1 # enable this if your system supports it. i assume both your pc and display.
+hdr_max_nits=1000 # this is the value from the barely visible logo.
+hdr_sdr_nits=100 # itm thing
+hdr_sdr_content_nits=100 # also itm thing
+hdr_sdr_gamut_wideness=0 # goes from 0.0 to 1.0
+
+# > HDR < #
+
+# < Process > #
+# this is process configuration. these control resolution and fps cap lmao. leave it at 0 if you want this script to automatically setup everything.
+process_resolution_x=0
+process_resolution_y=0
+process_framerate=0
+
+# use these if you have issues with mouse or keyboard.
+process_lock_mouse=1
+process_lock_keyboard=0
+
+# > Process < #
+# \\ Gamescope // #
+
+
+
+# LOGIC #
+
+# this does gpu offloading if your system has more than 1 gpu. typically igpu and dgpu.
+gpu_count=$(lspci -nn | grep -Ei 'vga|3d|display' | wc -l)
+if [ "$gpu_count" -gt 1 ] && [ "$primerun_enabled" -eq 1 ]; then
+    export DRI_PRIME=1
+
+    export __NV_PRIME_RENDER_OFFLOAD=1
+    export __GLX_VENDOR_LIBRARY_NAME=nvidia
+    export __VK_LAYER_NV_optimus=NVIDIA_only
+fi
+
+gamescope_here=0
+gamemode_here=0
+mangohud_here=0
+mangoapp_here=0
+
+# gamemode will tune the system so the application runs optimally.
+if command -v gamemoderun >/dev/null 2>&1 && [ "$gamemode_enabled" -eq 1 ]; then
+    gamemode_here=1
+    GM="gamemoderun "
+else
+    GM=""
+fi
+
+# mangohud is here because gamescope supports it and people likely would want to monitor their resource usage.
+if command -v mangohud >/dev/null 2>&1 && [ "$mangohud_enabled" -eq 1 ]; then
+    mangohud_here=1
+    MH="mangohud "
+else
+    MH=""
+fi
+
+# gamescope will isolate your application from your desktop environment. who doesn't love making apps delusional, ey?
+if command -v gamescope >/dev/null 2>&1 && [ "$gamescope_enabled" -eq 1 ]; then
+
+    # these simple checks ensure that gamescope doesn't break.
+    if [ "$process_resolution_x" -eq 0 ]; then
+        process_resolution_x="$compositor_resolution_x"
+    fi
+
+    if [ "$process_resolution_y" -eq 0 ]; then
+        process_resolution_y="$compositor_resolution_y"
+    fi
+
+    if [ "$process_framerate" -eq 0 ]; then
+        process_framerate="$((compositor_refreshrate - 1))"
+    fi
+
+    wl=""
+    if [ "$compositor_expose_wayland" -eq 1 ]; then
+        wl="--expose-wayland "
+    fi
+
+    hdr=""
+    hdrconf=""
+    if [ "$compositor_hdr_enabled" -eq 1 ]; then
+        hdr="--hdr-enabled --hdr-itm-enabled --hdr-debug-force-support --hdr-debug-force-output "
+        hdrconf="--hdr-itm-target-nits $hdr_max_nits --hdr-sdr-content-nits $hdr_sdr_content_nits --hdr-itm-sdr-nits $hdr_sdr_nits --sdr-gamut-wideness $hdr_sdr_gamut_wideness "
+    fi
+
+    async=""
+    if [ "$compositor_adaptivesync_enabled" -eq 1 ]; then
+        async="--adaptive-sync "
+    fi
+
+    steam=""
+    if [ "$compositor_steam" -eq 1 ]; then
+        steam="--steam "
+    fi
+
+    mouse_locked=""
+    if [ "$process_lock_mouse" -eq 1 ]; then
+        mouse_locked="--force-grab-cursor "
+    fi
+
+    keyboard_locked=""
+    if [ "$process_lock_keyboard" -eq 1 ]; then
+        keyboard_locked="--grab "
+    fi
+
+    mhud=""
+    if [ "$mangohud_here" -eq 1 ]; then
+        if command -v mangoapp >/dev/null 2>&1; then
+            if [ "$compositor_mangoapp_wayland" -eq 1 ] || [ "$compositor_expose_wayland" -eq 0 ]; then
+                MH=""
+                mangoapp_here=1
+                mhud="--mangoapp "
+            fi
+        else
+            MH=""
+            mangoapp_here=-1
+        fi
+    fi
+
+     # if you have gamescope installed, search for docs for it or just run "gamescope --help" for the parameters. now that's advanced.
+    gamescope_here=1 #
+    GS="gamescope --rt $wl \
+
+        -W $compositor_resolution_x \
+        -H $compositor_resolution_y \
+        -r $compositor_refreshrate \
+
+        -F $compositor_filter_method \
+        -S $compositor_scaling_method \
+
+        -w $process_resolution_x \
+        -h $process_resolution_y \
+        --framerate-limit $process_framerate \
+
+        $mouse_locked \
+
+        $mhud$hdr$hdrconf$async$steam-- "
+else
+    GS=""
+fi
+
+if [ "$1" = "--help" ] || [ "$1" = "-h" ] || [ "$1" = "" ]; then
+    echo "A configurable drop in replacement for nvidia prime-run with additional gamemoderun, gamescope, and mangohud support."
+    echo "you can run this file with"
+    echo " -hh \t -> \t to list help messages for gamemoderun, gamescope, and mangohud."
+    echo " -s \t -> \t to print status."
+    echo ""
+    echo " $(basename "$0") <program>"
+    exit 0
+fi
+
+if [ "$1" = "-hh" ]; then
+    echo " GAMEMODE"
+    if [ "$gamemode_here" -eq 1 ]; then
+        echo "-> gamemoded <-"
+        echo "this is what gamemoderun actually calls."
+        gamemoded -v
+        gamemoded -h
+        echo ""
+        gamemoderun
+        echo ""
+        echo "gamemoderun <program>"
+    else
+        echo "disabled or not installed"
+    fi
+
+    echo ""
+    echo ""
+    echo " GAMESCOPE"
+    if [ "$gamescope_here" -eq 1 ]; then
+        gamescope --help
+    else
+        echo "disabled or not installed"
+    fi
+
+    echo ""
+    echo ""
+    echo " MANGOHUD"
+    if [ "$mangohud_here" -eq 1 ]; then
+        echo "No need to worry, this is controlled error."
+        mangohud
+    else
+        echo "disabled or not installed"
+    fi
+    exit 0
+fi
+
+echo "OPTIMUS STATUS"
+
+# this is set as 'prime-run' so users can easily connect the dots.
+if [ "$gpu_count" -gt 1 ] && [ "$primerun_enabled" -eq 1 ]; then
+    echo " prime-run:\t Y"
+else
+    echo " prime-run:\t N"
+fi
+if [ "$gamescope_here" -eq 1 ]; then
+    echo " gamescope:\t Y"
+else
+    echo " gamescope:\t N"
+fi
+if [ "$gamemode_here" -eq 1 ]; then
+    echo " gamemode:\t Y"
+else
+    echo " gamemode:\t N"
+fi
+if [ "$mangohud_here" -eq 1 ]; then
+    if [ "$mangoapp_here" -eq 1 ]; then
+        echo " mangohud:\t Y (mangoapp)"
+
+    elif [ "$mangoapp_here" -eq -1 ]; then
+        echo " mangohud:\t N (install mangoapp)"
+
+    else
+        echo " mangohud:\t Y"
+    fi
+else
+    echo " mangohud:\t N"
+fi
+
+if [ "$1" = "-s" ]; then
+    exit 0
+fi
+
+# the command. amazing? lmao
+CMD="$GM$GS$MH"
+
+if [ "$gamescope_here" -eq 1 ]; then
+    echo ""
+    echo "if you're planning to configure gamescope behavior through this script, refer to gamescope docs or use"
+    echo " -> $(basename "$0") -hh"
+    echo " -> gamemode --help"
+
+    gamescope --help # run this anyways for people who are scared of reading code.
+fi
+
+if [ "$gamescope_here" -eq 1 ] || [ "$gamemode_here" -eq 1 ]; then
+    echo ""
+    echo "depending on the process you run this script with, gamescope or gamemode may linger for too long without exiting. use system monitor or task manager to kill redundant processes."
+fi
+
+echo ""
+echo "command to be ran: $CMD$@" #debug thing
+
+exec $CMD "$@"
