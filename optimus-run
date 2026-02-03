@@ -4,7 +4,7 @@
 # // General \\ #
 
 # if you enable these features, ensure that they're installed or they're gonna be ignored.
-gamescope_enabled=1
+gamescope_enabled=0
 gamemode_enabled=1
 mangohud_enabled=0
 primerun_enabled=1 # enables gpu offloading. if prefer_switcherooctl is set to 0, environment variables will be used.
@@ -76,6 +76,7 @@ if [ "$gpu_count" -gt 1 ] && [ "$primerun_enabled" -eq 1 ]; then
         switcherooctl=1
         SW="switcherooctl launch --gpu $switcherooctl_gpu_override "
     else
+        SW=""
         export DRI_PRIME=1
 
         export __NV_PRIME_RENDER_OFFLOAD=1
