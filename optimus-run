@@ -311,7 +311,7 @@ if [ "$gamescope_here" -eq 1 ] || [ "$gamemode_here" -eq 1 ]; then
 fi
 
 # the command. amazing? lmao
-CMD="$SW$GM$GS$MH"
+CMD="$NVPR$SW$GM$GS$MH"
 
 echo ""
 echo "command to be ran: $CMD$@" #debug thing
