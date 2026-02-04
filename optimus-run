@@ -14,7 +14,6 @@ switcherooctl_gpu_override=1 # 1 usually is your descrete gpu. if you have cable
 
 # \\ General // #
 
-
 # // Gamescope \\ #
 # note: all gamescope settings will be ignored if you disabled it or don't have it installed.
 
@@ -23,9 +22,6 @@ compositor_steam=0
 
 # expose gamescope's wayland to processes you run with this script. if you have this enabled, mangohub will be moved to the process instead of gamescope.
 compositor_expose_wayland=0
-
-# force mangohud (gamescope's mangoapp) to use wayland. may not work.
-compositor_mangoapp_wayland=0
 
 # this is compositor controls. this is like setting up an 'ideal' screen but one that runs on yours.
 compositor_resolution_x=1280
@@ -60,9 +56,22 @@ process_lock_keyboard=0
 # \\ Gamescope // #
 
 
+# // Fun & Test \\ #
+# all things here may change or break. keep them at their defaults if you value stability.
+
+# enable this if you truly have a good reason to. lmao.
+prefer_nvidiaprimerun=0
+
+# force mangohud (gamescope's mangoapp) to use wayland. may not work.
+compositor_mangoapp_wayland=0
+
+# // Fun & Test \\ #
+
+
 
 # LOGIC #
 
+nvidiaprimerun_here=0
 switcherooctl_here=0
 gamescope_here=0
 gamemode_here=0
@@ -75,6 +84,9 @@ if [ "$gpu_count" -gt 1 ] && [ "$primerun_enabled" -eq 1 ]; then
     if command -v switcherooctl >/dev/null 2>&1 && [ "$prefer_switcherooctl" -eq 1 ]; then
         switcherooctl_here=1
         SW="switcherooctl launch --gpu $switcherooctl_gpu_override "
+    elif command -v prime-run >/dev/null 2>&1 && [ "$prefer_nvidiaprimerun" -eq 1 ]; then
+        nvidiaprimerun_here=1
+        NVPR="prime-run "
     else
         export DRI_PRIME=1
 
@@ -245,6 +257,8 @@ echo "OPTIMUS STATUS"
 if [ "$gpu_count" -gt 1 ] && [ "$primerun_enabled" -eq 1 ]; then
     if [ "$switcherooctl_here" -eq 1 ]; then
         echo " prime-run:\t Y (switcherooctl)"
+    elif [ "$nvidiaprimerun_here" -eq 1 ]; then
+        echo " prime-run:\t Y (NVIDIA)"
     else
         echo " prime-run:\t Y"
     fi
