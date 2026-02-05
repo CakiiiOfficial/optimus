@@ -71,6 +71,10 @@ compositor_mangoapp_wayland=0
 
 # LOGIC #
 
+function exists {
+    command -v "$1" >/dev/null 2>&1
+}
+
 nvidiaprimerun_here=0
 switcherooctl_here=0
 gamescope_here=0
@@ -81,10 +85,10 @@ mangoapp_here=0
 # this does gpu offloading if your system has more than 1 gpu. typically igpu and dgpu.
 gpu_count=$(lspci -nn | grep -Ei 'vga|3d|display' | wc -l)
 if [ "$gpu_count" -gt 1 ] && [ "$primerun_enabled" -eq 1 ]; then
-    if command -v switcherooctl >/dev/null 2>&1 && [ "$prefer_switcherooctl" -eq 1 ]; then
+    if exists switcherooctl && [ "$prefer_switcherooctl" -eq 1 ]; then
         switcherooctl_here=1
         SW="switcherooctl launch --gpu $switcherooctl_gpu_override "
-    elif command -v prime-run >/dev/null 2>&1 && [ "$prefer_nvidiaprimerun" -eq 1 ]; then
+    elif exists prime-run && [ "$prefer_nvidiaprimerun" -eq 1 ]; then
         nvidiaprimerun_here=1
         NVPR="prime-run "
     else
@@ -97,19 +101,19 @@ if [ "$gpu_count" -gt 1 ] && [ "$primerun_enabled" -eq 1 ]; then
 fi
 
 # gamemode will tune the linux kernel so the application runs optimally.
-if command -v gamemoderun >/dev/null 2>&1 && [ "$gamemode_enabled" -eq 1 ]; then
+if exists gamemoderun && [ "$gamemode_enabled" -eq 1 ]; then
     gamemode_here=1
     GM="gamemoderun "
 fi
 
 # mangohud is here because people would likely want to monitor their resource usage.
-if command -v mangohud >/dev/null 2>&1 && [ "$mangohud_enabled" -eq 1 ]; then
+if exists mangohud && [ "$mangohud_enabled" -eq 1 ]; then
     mangohud_here=1
     MH="mangohud "
 fi
 
 # gamescope will isolate your application from your desktop environment. who doesn't love making apps delusional, ey?
-if command -v gamescope >/dev/null 2>&1 && [ "$gamescope_enabled" -eq 1 ]; then
+if exists gamescope && [ "$gamescope_enabled" -eq 1 ]; then
 
     # these simple checks ensure that gamescope doesn't break.
     if [ "$process_resolution_x" -eq 0 ]; then
@@ -150,7 +154,7 @@ if command -v gamescope >/dev/null 2>&1 && [ "$gamescope_enabled" -eq 1 ]; then
     fi
 
     if [ "$mangohud_here" -eq 1 ]; then
-        if command -v mangoapp >/dev/null 2>&1; then
+        if exists mangoapp; then
             if [ "$compositor_mangoapp_wayland" -eq 1 ] || [ "$compositor_expose_wayland" -eq 0 ]; then
                 MH=""
                 mangoapp_here=1
@@ -258,7 +262,7 @@ if [ "$gpu_count" -gt 1 ] && [ "$primerun_enabled" -eq 1 ]; then
     if [ "$switcherooctl_here" -eq 1 ]; then
         echo " prime-run:\t Y (switcherooctl)"
     elif [ "$nvidiaprimerun_here" -eq 1 ]; then
-        echo " prime-run:\t Y (NVIDIA)"
+        echo " prime-run:\t Y (NVIDIA prime-run)"
     else
         echo " prime-run:\t Y"
     fi
@@ -301,8 +305,6 @@ if [ "$gamescope_here" -eq 1 ]; then
     echo "if you're planning to configure gamescope behavior through this script, refer to gamescope docs or use"
     echo " -> $(basename "$0") -hh"
     echo " -> gamemode --help"
-
-    gamescope --help # run this anyways for people who are scared of reading code.
 fi
 
 if [ "$gamescope_here" -eq 1 ] || [ "$gamemode_here" -eq 1 ]; then
