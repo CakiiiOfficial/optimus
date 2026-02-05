@@ -34,6 +34,7 @@ compositor_adaptivesync_enabled=0 # this is essentially vrr
 
 # < HDR > #
 
+# if you don't use wayland on your session, this will be ignored.
 compositor_hdr_enabled=0 # enable this if your system supports it. i assume both your pc and display.
 hdr_max_nits=1000 # this is the value from the barely visible logo.
 hdr_sdr_nits=100 # itm thing
@@ -82,6 +83,12 @@ gamemode_here=0
 mangohud_here=0
 mangoapp_here=0
 
+# if tells the script that you're using wayland. running wayland features on x11 can introduce crashes so this was added.
+wayland_here=0
+if [[ "$XDG_SESSION_TYPE" == "wayland" ]] || [[ -n "$WAYLAND_DISPLAY" ]]; then
+    wayland_here=1
+fi
+
 # this does gpu offloading if your system has more than 1 gpu. typically igpu and dgpu.
 gpu_count=$(lspci -nn | grep -Ei 'vga|3d|display' | wc -l)
 if [ "$gpu_count" -gt 1 ] && [ "$primerun_enabled" -eq 1 ]; then
@@ -128,16 +135,16 @@ if exists gamescope && [ "$gamescope_enabled" -eq 1 ]; then
         process_framerate="$((compositor_refreshrate - 1))"
     fi
 
-    if [ "$compositor_expose_wayland" -eq 1 ]; then
+    if [ "$compositor_expose_wayland" -eq 1 ] && [ "$wayland_here" -eq 1 ];; then
         wl="--expose-wayland "
     fi
 
-    if [ "$compositor_hdr_enabled" -eq 1 ]; then
+    if [ "$compositor_hdr_enabled" -eq 1 ] && [ "$wayland_here" -eq 1 ]; then
         hdr="--hdr-enabled --hdr-itm-enabled --hdr-debug-force-support --hdr-debug-force-output "
         hdrconf="--hdr-itm-target-nits $hdr_max_nits --hdr-sdr-content-nits $hdr_sdr_content_nits --hdr-itm-sdr-nits $hdr_sdr_nits --sdr-gamut-wideness $hdr_sdr_gamut_wideness "
     fi
 
-    if [ "$compositor_adaptivesync_enabled" -eq 1 ]; then
+    if [ "$compositor_adaptivesync_enabled" -eq 1 ] && [ "$wayland_here" -eq 1 ]; then
         async="--adaptive-sync "
     fi
 
