@@ -7,10 +7,10 @@
 gamescope_enabled=0
 gamemode_enabled=1
 mangohud_enabled=0
-primerun_enabled=1 # enables gpu offloading. if prefer_switcherooctl is set to 0, environment variables will be used.
+primerun_enabled=1 # enables gpu offloading. if set to 0, any offloading will not be done.
 
-prefer_switcherooctl=1 # seems to be more stable than environment variables. if you disable it, this script will use environment variables assuming primerun_enabled is 1 in both scenarios.
-switcherooctl_gpu_override=1 # 1 usually is your descrete gpu. if you have cable plugged into the descrete card and have integrated one enabled, this may force integrated. set it to 0 if you have poor performance.
+prefer_switcherooctl=1 # seems to be more stable than environment variables. primerun_enabled must be set to 1 for this to work.
+switcherooctl_gpu_override=1 # List all GPUs from "switcherooctl list" and set here the one you want to be used.
 
 # \\ General // #
 
