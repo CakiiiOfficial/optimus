@@ -135,7 +135,7 @@ if exists gamescope && [ "$gamescope_enabled" -eq 1 ]; then
         process_framerate="$((compositor_refreshrate - 1))"
     fi
 
-    if [ "$compositor_expose_wayland" -eq 1 ] && [ "$wayland_here" -eq 1 ];; then
+    if [ "$compositor_expose_wayland" -eq 1 ] && [ "$wayland_here" -eq 1 ]; then
         wl="--expose-wayland "
     fi
 
