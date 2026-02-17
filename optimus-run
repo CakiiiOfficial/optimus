@@ -6,11 +6,11 @@
 # if you enable these features, ensure that they're installed or they're gonna be ignored.
 gamescope_enabled=0
 gamemode_enabled=1
-mangohud_enabled=0
+mangohud_enabled=1
 primerun_enabled=1 # enables gpu offloading. if set to 0, any offloading will not be done.
 
-prefer_switcherooctl=1 # seems to be more stable than environment variables. primerun_enabled must be set to 1 for this to work.
-switcherooctl_gpu_override=1 # List all GPUs from "switcherooctl list" and set here the one you want to be used.
+prefer_switcherooctl=1 # seems to be more consistent than environment variables. primerun_enabled must be set to 1 for this to work.
+switcherooctl_gpu_override=1 # list all GPUs from "switcherooctl list" and set here the one you want to be used.
 
 # \\ General // #
 
@@ -24,9 +24,10 @@ compositor_steam=0
 compositor_expose_wayland=0
 
 # this is compositor controls. this is like setting up an 'ideal' screen but one that runs on yours.
+# even if you don't use gamescope, i'd still set compositor_refreshrate to the current refresh rate of your display for consistent visuals.
 compositor_resolution_x=1280
 compositor_resolution_y=720
-compositor_refreshrate=59 # i've tested on many machines, if you do your refresh rate -1 then you mostly eliminate screen tearing.
+compositor_refreshrate=60
 
 compositor_scaling_method=fit # (auto, integer, fit, fill, stretch)
 compositor_filter_method=linear # (linear, nearest, fsr, nis, pixel)
@@ -47,7 +48,7 @@ hdr_sdr_gamut_wideness=0 # goes from 0.0 to 1.0
 # this is process configuration. these control resolution and fps cap lmao. leave it at 0 if you want this script to automatically setup everything.
 process_resolution_x=0
 process_resolution_y=0
-process_framerate=0
+process_max_framerate=0 # this works if you have mangohud/gamescope (with mangoapp) installed at least.
 
 # use these if you have issues with mouse or keyboard.
 process_lock_mouse=0
@@ -57,14 +58,26 @@ process_lock_keyboard=0
 # \\ Gamescope // #
 
 
+# // MangoHud \\ #
+
+# if you want to set fps_limit, check process_max_framerate above instead.
+# this also may not work if you have gamescope (plus having mangoapp) installed and enabled.
+mangohud_conf=""
+
+# \\ MangoHud // #
+
+
 # // Fun & Test \\ #
-# all things here may change or break. keep them at their defaults if you value stability.
+# some things here may change or break. keep them at their defaults if you value stability.
 
 # enable this if you truly have a good reason to. lmao.
 prefer_nvidiaprimerun=0
 
+# this tells the script by how much to subtract your current refresh rate for more consistent visuals. i'd use either 1 or 2.
+compositor_subtract_refresh_rate_by=0
+
 # force mangohud (gamescope's mangoapp) to use wayland. may not work.
-compositor_mangoapp_wayland=0
+compositor_mangoapp_force_wayland=0
 
 # // Fun & Test \\ #
 
@@ -83,10 +96,20 @@ gamemode_here=0
 mangohud_here=0
 mangoapp_here=0
 
-# if tells the script that you're using wayland. running wayland features on x11 can introduce crashes so this was added.
+# this tells the script whether you're using wayland. running wayland features on x11 can introduce issues so this check was added to compensate.
 wayland_here=0
 if [[ "$XDG_SESSION_TYPE" == "wayland" ]] || [[ -n "$WAYLAND_DISPLAY" ]]; then
     wayland_here=1
+fi
+
+# refresh rate gets subtracted by whatever value you set on compositor_subtract_refresh_rate_by. if you use vsync, you may have better input latency.
+if [ "$compositor_subtract_refresh_rate_by" -gt 0 ]; then
+    compositor_refreshrate="$((compositor_refreshrate - compositor_subtract_refresh_rate_by))"
+fi
+
+# always subtracted. i mean, you won't lose anything if you have 1 frame less.
+if [ "$process_max_framerate" -eq 0 ]; then
+    process_max_framerate="$((compositor_refreshrate - 1))"
 fi
 
 # this does gpu offloading if your system has more than 1 gpu. typically igpu and dgpu.
@@ -108,18 +131,23 @@ if [ "$gpu_count" -gt 1 ] && [ "$primerun_enabled" -eq 1 ]; then
 fi
 
 # gamemode will tune the linux kernel so the application runs optimally.
-if exists gamemoderun && [ "$gamemode_enabled" -eq 1 ]; then
+if exists gamemoderun && exists gamemoded && [ "$gamemode_enabled" -eq 1 ]; then
     gamemode_here=1
     GM="gamemoderun "
 fi
 
 # mangohud is here because people would likely want to monitor their resource usage.
 if exists mangohud && [ "$mangohud_enabled" -eq 1 ]; then
+    if [ "$mangohud_conf" = "" ]; then
+        export MANGOHUD_CONFIG="fps_limit=$process_max_framerate"
+    else
+        export MANGOHUD_CONFIG="fps_limit=$process_max_framerate,$mangohud_conf"
+    fi
     mangohud_here=1
     MH="mangohud "
 fi
 
-# gamescope will isolate your application from your desktop environment. who doesn't love making apps delusional, ey?
+# gamescope will act as a desktop environment which will house your processes.
 if exists gamescope && [ "$gamescope_enabled" -eq 1 ]; then
 
     # these simple checks ensure that gamescope doesn't break.
@@ -129,10 +157,6 @@ if exists gamescope && [ "$gamescope_enabled" -eq 1 ]; then
 
     if [ "$process_resolution_y" -eq 0 ]; then
         process_resolution_y="$compositor_resolution_y"
-    fi
-
-    if [ "$process_framerate" -eq 0 ]; then
-        process_framerate="$((compositor_refreshrate - 1))"
     fi
 
     if [ "$compositor_expose_wayland" -eq 1 ] && [ "$wayland_here" -eq 1 ]; then
@@ -162,7 +186,7 @@ if exists gamescope && [ "$gamescope_enabled" -eq 1 ]; then
 
     if [ "$mangohud_here" -eq 1 ]; then
         if exists mangoapp; then
-            if [ "$compositor_mangoapp_wayland" -eq 1 ] || [ "$compositor_expose_wayland" -eq 0 ]; then
+            if [ "$compositor_mangoapp_force_wayland" -eq 1 ] || [ "$compositor_expose_wayland" -eq 0 ]; then
                 MH=""
                 mangoapp_here=1
                 mhud="--mangoapp "
@@ -173,7 +197,7 @@ if exists gamescope && [ "$gamescope_enabled" -eq 1 ]; then
         fi
     fi
 
-     # if you have gamescope installed, search for docs for it or just run "gamescope --help" for the parameters. now that's advanced.
+     # if you have gamescope installed, search for docs for it or just run "gamescope --help" for the parameters.
     gamescope_here=1 #
     GS="gamescope --rt $wl \
 
@@ -186,7 +210,7 @@ if exists gamescope && [ "$gamescope_enabled" -eq 1 ]; then
 
         -w $process_resolution_x \
         -h $process_resolution_y \
-        --framerate-limit $process_framerate \
+        --framerate-limit $process_max_framerate \
 
         $mouse_locked \
         $keyboard_locked \
@@ -197,14 +221,22 @@ fi
 
 
 
-if [ "$1" = "--help" ] || [ "$1" = "-h" ] || [ "$1" = "" ]; then
-    echo "A configurable drop in replacement for nvidia prime-run with additional gamemoderun, gamescope, and mangohud support."
-    echo "you can run this file with"
-    echo " -hh \t -> \t to list help messages for gamemoderun, gamescope, and mangohud."
-    echo " -s \t -> \t to print status."
+
+if [ "$1" = "--help" ] || [ "$1" = "-h" ] || [ $# -eq 0 ]; then
+    echo "A configurable drop in replacement for NVIDIA prime-run with additional gamemoderun, gamescope, and mangohud support."
+    echo "You can run this program with"
+    echo -e " -s \t\t -> \t to print status."
+    echo -e " -v \t\t -> \t to print program version."
+    echo -e " -c <program> \t -> \t to force stop this script before actual process execution."
+    echo -e " -hh \t\t -> \t to list help messages for switcherooctl, gamemoderun, gamescope, and mangohud."
     echo ""
     echo " $(basename "$0") <program>"
     exit 0
+fi
+
+if [ "$1" = "--version" ] || [ "$1" = "-v" ]; then
+    echo " $(basename "$0") v0.1.0"
+    exit 0;
 fi
 
 if [ "$1" = "-hh" ]; then
@@ -219,7 +251,11 @@ if [ "$1" = "-hh" ]; then
         echo "list"
         switcherooctl list
     else
-        echo "disabled or not installed"
+        if exists switcherooctl; then
+            echo "disabled"
+        else
+            echo "not installed"
+        fi
     fi
 
     echo ""
@@ -235,7 +271,11 @@ if [ "$1" = "-hh" ]; then
         echo ""
         echo "gamemoderun <program>"
     else
-        echo "disabled or not installed"
+        if exists gamemoderun && exists gamemoded; then
+            echo "disabled"
+        else
+            echo "not installed"
+        fi
     fi
 
     echo ""
@@ -244,7 +284,11 @@ if [ "$1" = "-hh" ]; then
     if [ "$gamescope_here" -eq 1 ]; then
         gamescope --help
     else
-        echo "disabled or not installed"
+        if exists gamescope; then
+            echo "disabled"
+        else
+            echo "not installed"
+        fi
     fi
 
     echo ""
@@ -254,50 +298,53 @@ if [ "$1" = "-hh" ]; then
         echo "No need to worry, this is controlled error."
         mangohud
     else
-        echo "disabled or not installed"
+        if exists mangohud; then
+            echo "disabled"
+        else
+            echo "not installed"
+        fi
     fi
     exit 0
 fi
 
 
 
-
 echo "OPTIMUS STATUS"
 
-# this is set as 'prime-run' so users can easily connect the dots.
+# this is called 'prime-run'. i mean, it's obvious what it does.
 if [ "$gpu_count" -gt 1 ] && [ "$primerun_enabled" -eq 1 ]; then
     if [ "$switcherooctl_here" -eq 1 ]; then
-        echo " prime-run:\t Y (switcherooctl)"
+        echo -e " prime-run:\t Y (switcherooctl)"
     elif [ "$nvidiaprimerun_here" -eq 1 ]; then
-        echo " prime-run:\t Y (NVIDIA prime-run)"
+        echo -e " prime-run:\t Y (NVIDIA prime-run)"
     else
-        echo " prime-run:\t Y"
+        echo -e " prime-run:\t Y"
     fi
 else
-    echo " prime-run:\t N"
+    echo -e " prime-run:\t N"
 fi
 if [ "$gamescope_here" -eq 1 ]; then
-    echo " gamescope:\t Y"
+    echo -e " gamescope:\t Y"
 else
-    echo " gamescope:\t N"
+    echo -e " gamescope:\t N"
 fi
 if [ "$gamemode_here" -eq 1 ]; then
-    echo " gamemode:\t Y"
+    echo -e " gamemode:\t Y"
 else
-    echo " gamemode:\t N"
+    echo -e " gamemode:\t N"
 fi
 if [ "$mangohud_here" -eq 1 ]; then
     if [ "$mangoapp_here" -eq 1 ]; then
-        echo " mangohud:\t Y (mangoapp)"
+        echo -e " mangohud:\t Y (mangoapp)"
 
     elif [ "$mangoapp_here" -eq -1 ]; then
-        echo " mangohud:\t N (install mangoapp)"
+        echo -e " mangohud:\t N (install mangoapp)"
 
     else
-        echo " mangohud:\t Y"
+        echo -e " mangohud:\t Y"
     fi
 else
-    echo " mangohud:\t N"
+    echo -e " mangohud:\t N"
 fi
 
 if [ "$1" = "-s" ]; then
@@ -306,23 +353,39 @@ fi
 
 
 
-
 if [ "$gamescope_here" -eq 1 ]; then
     echo ""
-    echo "if you're planning to configure gamescope behavior through this script, refer to gamescope docs or use"
-    echo " -> $(basename "$0") -hh"
-    echo " -> gamemode --help"
+    echo "If you're planning to configure gamescope behavior through this script, refer to gamescope docs or use"
+    echo " $(basename "$0") -hh"
+    echo " gamemode --help"
 fi
 
 if [ "$gamescope_here" -eq 1 ] || [ "$gamemode_here" -eq 1 ]; then
     echo ""
-    echo "depending on the process you run this script with, gamescope or gamemode may linger for too long without exiting. use system monitor or task manager to kill redundant processes."
+    echo "Depending on the process you run this script with, gamescope or gamemode may linger for too long without exiting. Use system monitor or task manager to kill redundant processes."
 fi
 
 # the command. amazing? lmao
-CMD="$NVPR$SW$GM$GS$MH"
+CMD="$GM$NVPR$SW$GS$MH"
+f=() # if you want only command to be printed.
+
+if [ "$1" = "-c" ]; then
+    for a in "$@"; do
+        if [[ "$a" != "-c" ]]; then
+            f+=("$a")
+        fi
+    done
+    if [ -z "${f[@]}" ]; then
+        echo ""
+        echo "command to be ran: "
+        exit 1
+    fi
+    echo ""
+    echo "command to be ran: $CMD${f[@]}"
+    exit 0
+fi
 
 echo ""
-echo "command to be ran: $CMD$@" #debug thing
+echo "command to be ran: $CMD$@" # debug thing
 
 exec $CMD "$@"
